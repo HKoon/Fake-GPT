@@ -21,7 +21,7 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// API Key验证中间件
+// OpenAI API Key验证中间件
 function validateApiKey(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -31,6 +31,30 @@ function validateApiKey(req, res, next) {
   const token = authHeader.substring(7);
   if (token !== config.apiKey) {
     return res.status(401).json({ error: 'Invalid API key' });
+  }
+  
+  next();
+}
+
+// Anthropic API Key验证中间件
+function validateAnthropicApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey) {
+    return res.status(401).json({ 
+      error: {
+        type: 'authentication_error',
+        message: 'Missing required header: x-api-key'
+      }
+    });
+  }
+  
+  if (apiKey !== config.apiKey) {
+    return res.status(401).json({ 
+      error: {
+        type: 'authentication_error',
+        message: 'Invalid API key'
+      }
+    });
   }
   
   next();
@@ -64,7 +88,7 @@ app.get('/', (req, res) => {
 });
 
 // Anthropic兼容的消息接口
-app.post('/v1/messages', validateApiKey, logRequest, (req, res) => {
+app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
   const { messages, stream = false, model = 'claude-3-sonnet-20240229', max_tokens = 1000 } = req.body;
   
   if (!messages || !Array.isArray(messages)) {
