@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
+const session = require('express-session');
 
 const app = express();
 
@@ -15,12 +16,74 @@ let config = {
   responseDelay: 0 // 响应延迟时间（毫秒），0表示无延迟
 };
 
+// 管理员密码（生产环境中应使用环境变量）
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
 // 请求记录存储
 let requestLogs = [];
+
+// 身份验证中间件
+function requireAuth(req, res, next) {
+  // 先检查会话超时
+  checkSessionTimeout(req, res, () => {
+    if (req.session && req.session.authenticated) {
+      return next();
+    } else {
+      return res.status(401).json({ 
+        error: 'Unauthorized',
+        message: 'Please login to access this resource'
+      });
+    }
+  });
+}
+
+// 检查是否已登录的中间件（用于重定向）
+function checkAuth(req, res, next) {
+  // 先检查会话超时
+  checkSessionTimeout(req, res, () => {
+    if (req.session && req.session.authenticated) {
+      req.isAuthenticated = true;
+    } else {
+      req.isAuthenticated = false;
+    }
+    next();
+  });
+}
 
 // 中间件
 app.use(cors());
 app.use(bodyParser.json());
+
+// 会话管理
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fake-gpt-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // 在生产环境中使用HTTPS时设置为true
+    httpOnly: true,
+    maxAge: 2 * 60 * 60 * 1000 // 2小时会话超时
+  }
+}));
+
+// 会话超时检查中间件
+function checkSessionTimeout(req, res, next) {
+  if (req.session && req.session.authenticated) {
+    const now = new Date();
+    const loginTime = new Date(req.session.loginTime);
+    const sessionDuration = now - loginTime;
+    const maxSessionDuration = 2 * 60 * 60 * 1000; // 2小时
+    
+    if (sessionDuration > maxSessionDuration) {
+      req.session.destroy();
+      return res.status(401).json({
+        success: false,
+        message: '会话已过期，请重新登录'
+      });
+    }
+  }
+  next();
+}
 // 静态文件服务配置
 app.use(express.static('public', {
     maxAge: '1h', // 缓存1小时
@@ -98,9 +161,69 @@ function logRequest(req, res, next) {
   next();
 }
 
-// 主页路由
-app.get('/', (req, res) => {
+// 登录页面路由
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// 主页路由（需要身份验证）
+app.get('/', checkAuth, (req, res) => {
+  if (!req.isAuthenticated) {
+    return res.redirect('/login');
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 登录API
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body;
+  
+  if (!password) {
+    return res.status(400).json({
+      success: false,
+      message: '请输入密码'
+    });
+  }
+  
+  if (password === ADMIN_PASSWORD) {
+    req.session.authenticated = true;
+    req.session.loginTime = new Date().toISOString();
+    
+    res.json({
+      success: true,
+      message: '登录成功'
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: '密码错误'
+    });
+  }
+});
+
+// 登出API
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: '登出失败'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: '已成功登出'
+    });
+  });
+});
+
+// 检查登录状态API
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    authenticated: !!(req.session && req.session.authenticated),
+    loginTime: req.session ? req.session.loginTime : null
+  });
 });
 
 // Anthropic兼容的消息接口
@@ -310,8 +433,8 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
   }
 });
 
-// 配置管理接口
-app.get('/api/config', (req, res) => {
+// 配置管理接口（需要身份验证）
+app.get('/api/config', requireAuth, (req, res) => {
   res.json({
     apiKey: config.apiKey,
     replyContent: config.replyContent,
@@ -319,7 +442,7 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-app.post('/api/config', (req, res) => {
+app.post('/api/config', requireAuth, (req, res) => {
   const { apiKey, replyContent, responseDelay } = req.body;
   
   if (apiKey !== undefined) {
@@ -337,12 +460,12 @@ app.post('/api/config', (req, res) => {
   res.json({ success: true, config });
 });
 
-// 请求日志接口
-app.get('/api/logs', (req, res) => {
+// 请求日志接口（需要身份验证）
+app.get('/api/logs', requireAuth, (req, res) => {
   res.json(requestLogs);
 });
 
-// 健康检查端点
+// 健康检查端点（公开访问，用于连接检测）
 app.get('/api/health', (req, res) => {
   res.json({ 
     success: true, 
@@ -352,13 +475,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.delete('/api/logs', (req, res) => {
+app.delete('/api/logs', requireAuth, (req, res) => {
   requestLogs = [];
   res.json({ success: true });
 });
 
-// 下载请求日志接口
-app.get('/api/logs/download', (req, res) => {
+// 下载请求日志接口（需要身份验证）
+app.get('/api/logs/download', requireAuth, (req, res) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `fake-gpt-logs-${timestamp}.json`;
   
