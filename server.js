@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 3000;
 // 配置存储
 let config = {
   apiKey: 'sk-fake-gpt-key-123456789',
-  replyContent: 'Hello! I am a fake GPT model. This is a simulated response.'
+  replyContent: 'Hello! I am a fake GPT model. This is a simulated response.',
+  responseDelay: 0 // 响应延迟时间（毫秒），0表示无延迟
 };
 
 // 请求记录存储
@@ -102,84 +103,94 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
   
   const responseId = `msg_${uuidv4()}`;
   
-  if (stream) {
-    // 流式响应
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    
-    // 发送开始事件
-    res.write(`event: message_start\ndata: ${JSON.stringify({
-      type: 'message_start',
-      message: {
+  // 应用响应延迟
+  const processResponse = () => {
+    if (stream) {
+      // 流式响应
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      // 发送开始事件
+      res.write(`event: message_start\ndata: ${JSON.stringify({
+        type: 'message_start',
+        message: {
+          id: responseId,
+          type: 'message',
+          role: 'assistant',
+          content: [],
+          model: model,
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 10, output_tokens: 0 }
+        }
+      })}\n\n`);
+      
+      // 发送内容块开始
+      res.write(`event: content_block_start\ndata: ${JSON.stringify({
+        type: 'content_block_start',
+        index: 0,
+        content_block: { type: 'text', text: '' }
+      })}\n\n`);
+      
+      const words = config.replyContent.split('');
+      let wordIndex = 0;
+      
+      const sendChunk = () => {
+        if (wordIndex < words.length) {
+          res.write(`event: content_block_delta\ndata: ${JSON.stringify({
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: words[wordIndex] }
+          })}\n\n`);
+          
+          wordIndex++;
+          setTimeout(sendChunk, 50);
+        } else {
+          // 发送内容块结束
+          res.write(`event: content_block_stop\ndata: ${JSON.stringify({
+            type: 'content_block_stop',
+            index: 0
+          })}\n\n`);
+          
+          // 发送消息结束
+          res.write(`event: message_stop\ndata: ${JSON.stringify({
+            type: 'message_stop'
+          })}\n\n`);
+          
+          res.end();
+        }
+      };
+      
+      sendChunk();
+    } else {
+      // 非流式响应
+      const response = {
         id: responseId,
         type: 'message',
         role: 'assistant',
-        content: [],
+        content: [{
+          type: 'text',
+          text: config.replyContent
+        }],
         model: model,
-        stop_reason: null,
+        stop_reason: 'end_turn',
         stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 0 }
-      }
-    })}\n\n`);
-    
-    // 发送内容块开始
-    res.write(`event: content_block_start\ndata: ${JSON.stringify({
-      type: 'content_block_start',
-      index: 0,
-      content_block: { type: 'text', text: '' }
-    })}\n\n`);
-    
-    const words = config.replyContent.split('');
-    let wordIndex = 0;
-    
-    const sendChunk = () => {
-      if (wordIndex < words.length) {
-        res.write(`event: content_block_delta\ndata: ${JSON.stringify({
-          type: 'content_block_delta',
-          index: 0,
-          delta: { type: 'text_delta', text: words[wordIndex] }
-        })}\n\n`);
-        
-        wordIndex++;
-        setTimeout(sendChunk, 50);
-      } else {
-        // 发送内容块结束
-        res.write(`event: content_block_stop\ndata: ${JSON.stringify({
-          type: 'content_block_stop',
-          index: 0
-        })}\n\n`);
-        
-        // 发送消息结束
-        res.write(`event: message_stop\ndata: ${JSON.stringify({
-          type: 'message_stop'
-        })}\n\n`);
-        
-        res.end();
-      }
-    };
-    
-    sendChunk();
+        usage: {
+          input_tokens: 10,
+          output_tokens: config.replyContent.length
+        }
+      };
+      
+      res.json(response);
+    }
+  };
+  
+  // 如果设置了响应延迟，则延迟执行
+  if (config.responseDelay > 0) {
+    setTimeout(processResponse, config.responseDelay);
   } else {
-    // 非流式响应
-    const response = {
-      id: responseId,
-      type: 'message',
-      role: 'assistant',
-      content: [{
-        type: 'text',
-        text: config.replyContent
-      }],
-      model: model,
-      stop_reason: 'end_turn',
-      stop_sequence: null,
-      usage: {
-        input_tokens: 10,
-        output_tokens: config.replyContent.length
-      }
-    };
-    
-    res.json(response);
+    processResponse();
   }
 });
 
@@ -199,78 +210,88 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
   const responseId = `chatcmpl-${uuidv4()}`;
   const created = Math.floor(Date.now() / 1000);
   
-  if (stream) {
-    // 流式响应
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    
-    const words = config.replyContent.split('');
-    let wordIndex = 0;
-    
-    const sendChunk = () => {
-      if (wordIndex < words.length) {
-        const chunk = {
-          id: responseId,
-          object: 'chat.completion.chunk',
-          created: created,
-          model: model,
-          choices: [{
-            index: 0,
-            delta: {
-              content: words[wordIndex]
-            },
-            finish_reason: null
-          }]
-        };
-        
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        wordIndex++;
-        setTimeout(sendChunk, 50); // 50ms延迟模拟打字效果
-      } else {
-        // 发送结束chunk
-        const endChunk = {
-          id: responseId,
-          object: 'chat.completion.chunk',
-          created: created,
-          model: model,
-          choices: [{
-            index: 0,
-            delta: {},
-            finish_reason: 'stop'
-          }]
-        };
-        
-        res.write(`data: ${JSON.stringify(endChunk)}\n\n`);
-        res.write('data: [DONE]\n\n');
-        res.end();
-      }
-    };
-    
-    sendChunk();
+  // 应用响应延迟
+  const processResponse = () => {
+    if (stream) {
+      // 流式响应
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const words = config.replyContent.split('');
+      let wordIndex = 0;
+      
+      const sendChunk = () => {
+        if (wordIndex < words.length) {
+          const chunk = {
+            id: responseId,
+            object: 'chat.completion.chunk',
+            created: created,
+            model: model,
+            choices: [{
+              index: 0,
+              delta: {
+                content: words[wordIndex]
+              },
+              finish_reason: null
+            }]
+          };
+          
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          wordIndex++;
+          setTimeout(sendChunk, 50); // 50ms延迟模拟打字效果
+        } else {
+          // 发送结束chunk
+          const endChunk = {
+            id: responseId,
+            object: 'chat.completion.chunk',
+            created: created,
+            model: model,
+            choices: [{
+              index: 0,
+              delta: {},
+              finish_reason: 'stop'
+            }]
+          };
+          
+          res.write(`data: ${JSON.stringify(endChunk)}\n\n`);
+          res.write('data: [DONE]\n\n');
+          res.end();
+        }
+      };
+      
+      sendChunk();
+    } else {
+      // 非流式响应
+      const response = {
+        id: responseId,
+        object: 'chat.completion',
+        created: created,
+        model: model,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: config.replyContent
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: config.replyContent.length,
+          total_tokens: 10 + config.replyContent.length
+        }
+      };
+      
+      res.json(response);
+    }
+  };
+  
+  // 如果设置了响应延迟，则延迟执行
+  if (config.responseDelay > 0) {
+    setTimeout(processResponse, config.responseDelay);
   } else {
-    // 非流式响应
-    const response = {
-      id: responseId,
-      object: 'chat.completion',
-      created: created,
-      model: model,
-      choices: [{
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: config.replyContent
-        },
-        finish_reason: 'stop'
-      }],
-      usage: {
-        prompt_tokens: 10,
-        completion_tokens: config.replyContent.length,
-        total_tokens: 10 + config.replyContent.length
-      }
-    };
-    
-    res.json(response);
+    processResponse();
   }
 });
 
@@ -278,12 +299,13 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
 app.get('/api/config', (req, res) => {
   res.json({
     apiKey: config.apiKey,
-    replyContent: config.replyContent
+    replyContent: config.replyContent,
+    responseDelay: config.responseDelay
   });
 });
 
 app.post('/api/config', (req, res) => {
-  const { apiKey, replyContent } = req.body;
+  const { apiKey, replyContent, responseDelay } = req.body;
   
   if (apiKey !== undefined) {
     config.apiKey = apiKey;
@@ -291,6 +313,10 @@ app.post('/api/config', (req, res) => {
   
   if (replyContent !== undefined) {
     config.replyContent = replyContent;
+  }
+  
+  if (responseDelay !== undefined) {
+    config.responseDelay = Math.max(0, parseInt(responseDelay) || 0);
   }
   
   res.json({ success: true, config });
@@ -304,6 +330,20 @@ app.get('/api/logs', (req, res) => {
 app.delete('/api/logs', (req, res) => {
   requestLogs = [];
   res.json({ success: true });
+});
+
+// 下载请求日志接口
+app.get('/api/logs/download', (req, res) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `fake-gpt-logs-${timestamp}.json`;
+  
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json({
+    exportTime: new Date().toISOString(),
+    totalLogs: requestLogs.length,
+    logs: requestLogs
+  });
 });
 
 // 启动服务器

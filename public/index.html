@@ -214,6 +214,12 @@
                     <textarea id="replyContent" placeholder="输入自定义回复内容"></textarea>
                 </div>
                 
+                <div class="form-group">
+                    <label for="responseDelay">响应延迟 (毫秒):</label>
+                    <input type="number" id="responseDelay" placeholder="输入响应延迟时间，0表示无延迟" min="0" step="100">
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">设置响应延迟可以模拟网络延迟、模型处理时间或连接超时等情况</small>
+                </div>
+                
                 <button class="btn" onclick="saveConfig()">💾 保存配置</button>
             </div>
             
@@ -235,6 +241,7 @@
             <h2>📝 请求日志</h2>
             <div style="margin-bottom: 15px;">
                 <button class="btn" onclick="loadLogs()">🔄 刷新日志</button>
+                <button class="btn" onclick="downloadLogs()">📥 下载日志</button>
                 <button class="btn btn-danger" onclick="clearLogs()">🗑️ 清空日志</button>
             </div>
             
@@ -262,6 +269,7 @@
                 
                 document.getElementById('apiKey').value = config.apiKey || '';
                 document.getElementById('replyContent').value = config.replyContent || '';
+                document.getElementById('responseDelay').value = config.responseDelay || 0;
                 
                 updateApiInfo();
             } catch (error) {
@@ -273,6 +281,7 @@
         async function saveConfig() {
             const apiKey = document.getElementById('apiKey').value;
             const replyContent = document.getElementById('replyContent').value;
+            const responseDelay = document.getElementById('responseDelay').value;
             
             try {
                 const response = await fetch('/api/config', {
@@ -280,7 +289,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ apiKey, replyContent })
+                    body: JSON.stringify({ apiKey, replyContent, responseDelay })
                 });
                 
                 const result = await response.json();
@@ -350,6 +359,43 @@
                 `).join('');
             } catch (error) {
                 showStatus('加载日志失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 下载日志
+        async function downloadLogs() {
+            try {
+                const response = await fetch('/api/logs/download');
+                
+                if (!response.ok) {
+                    throw new Error('下载失败');
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // 从响应头获取文件名，如果没有则使用默认名称
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = 'fake-gpt-logs.json';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/i);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showStatus('日志下载成功', 'success');
+            } catch (error) {
+                showStatus('下载日志失败: ' + error.message, 'error');
             }
         }
         
