@@ -3,9 +3,10 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const WebSocket = require('ws');
+const http = require('http');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // 配置存储
 let config = {
@@ -20,7 +21,21 @@ let requestLogs = [];
 // 中间件
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+// 静态文件服务配置
+app.use(express.static('public', {
+    maxAge: '1h', // 缓存1小时
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, path) => {
+        // 对HTML文件设置较短的缓存时间
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+        // 设置连接保活
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Keep-Alive', 'timeout=30, max=100');
+    }
+}));
 
 // OpenAI API Key验证中间件
 function validateApiKey(req, res, next) {
@@ -327,6 +342,16 @@ app.get('/api/logs', (req, res) => {
   res.json(requestLogs);
 });
 
+// 健康检查端点
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.delete('/api/logs', (req, res) => {
   requestLogs = [];
   res.json({ success: true });
@@ -347,11 +372,99 @@ app.get('/api/logs/download', (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
-  console.log(`Fake GPT server is running on port ${PORT}`);
-  console.log(`Admin panel: http://localhost:${PORT}`);
-  console.log(`OpenAI API endpoint: http://localhost:${PORT}/v1/chat/completions`);
-  console.log(`Anthropic API endpoint: http://localhost:${PORT}/v1/messages`);
+const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+
+// WebSocket服务器
+const wss = new WebSocket.Server({ server });
+
+// WebSocket连接管理
+const clients = new Set();
+
+wss.on('connection', (ws) => {
+    console.log('新的WebSocket连接建立');
+    clients.add(ws);
+    
+    // 发送欢迎消息
+    ws.send(JSON.stringify({ type: 'connected', message: '连接已建立' }));
+    
+    // 心跳检测
+    const heartbeat = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.ping();
+        } else {
+            clearInterval(heartbeat);
+        }
+    }, 30000); // 每30秒发送一次心跳
+    
+    // 处理pong响应
+    ws.on('pong', () => {
+        console.log('收到客户端pong响应');
+    });
+    
+    // 处理消息
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+            }
+        } catch (error) {
+            console.error('WebSocket消息解析错误:', error);
+        }
+    });
+    
+    // 连接关闭处理
+    ws.on('close', () => {
+        console.log('WebSocket连接关闭');
+        clients.delete(ws);
+        clearInterval(heartbeat);
+    });
+    
+    // 错误处理
+    ws.on('error', (error) => {
+        console.error('WebSocket错误:', error);
+        clients.delete(ws);
+        clearInterval(heartbeat);
+    });
+});
+
+// 广播消息给所有连接的客户端
+function broadcast(message) {
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+        }
+    });
+}
+
+server.listen(PORT, () => {
+    console.log(`Fake GPT server is running on port ${PORT}`);
+    console.log(`Admin panel: http://localhost:${PORT}`);
+    console.log(`OpenAI API endpoint: http://localhost:${PORT}/v1/chat/completions`);
+    console.log(`Anthropic API endpoint: http://localhost:${PORT}/v1/messages`);
+    console.log(`WebSocket server is running on ws://localhost:${PORT}`);
+});
+
+// 服务器连接保活设置
+server.keepAliveTimeout = 65000; // 65秒
+server.headersTimeout = 66000; // 66秒，比keepAliveTimeout稍长
+
+// 优雅关闭处理
+process.on('SIGTERM', () => {
+    console.log('收到SIGTERM信号，正在优雅关闭服务器...');
+    server.close(() => {
+        console.log('服务器已关闭');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('收到SIGINT信号，正在优雅关闭服务器...');
+    server.close(() => {
+        console.log('服务器已关闭');
+        process.exit(0);
+    });
 });
 
 module.exports = app;

@@ -175,6 +175,45 @@
             border: 1px solid #f5c6cb;
         }
         
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .connection-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .status-online {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-offline {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -194,8 +233,11 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🤖 Fake GPT 管理面板</h1>
+        <div class="container">
+            <div class="header-section">
+                <h1>🤖 Fake GPT 管理面板</h1>
+                <div id="connectionStatus" class="connection-status status-online">🟢 已连接</div>
+            </div>
             <p>管理您的假GPT API服务器配置和请求日志</p>
         </div>
         
@@ -254,26 +296,202 @@
     <script>
         let currentConfig = {};
         
+        // 网络状态管理
+        let isOnline = true;
+        let healthCheckInterval;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        
+        // WebSocket连接管理
+        let ws = null;
+        let wsReconnectAttempts = 0;
+        const maxWsReconnectAttempts = 5;
+        let wsHeartbeatInterval;
+        
+        // 初始化WebSocket连接
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket连接已建立');
+                    wsReconnectAttempts = 0;
+                    startWebSocketHeartbeat();
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'connected') {
+                            console.log('WebSocket连接确认:', data.message);
+                        } else if (data.type === 'pong') {
+                            console.log('收到服务器pong响应');
+                        }
+                    } catch (error) {
+                        console.error('WebSocket消息解析错误:', error);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket连接关闭');
+                    stopWebSocketHeartbeat();
+                    
+                    // 尝试重连
+                    if (wsReconnectAttempts < maxWsReconnectAttempts) {
+                        wsReconnectAttempts++;
+                        console.log(`WebSocket重连尝试 ${wsReconnectAttempts}/${maxWsReconnectAttempts}`);
+                        setTimeout(initWebSocket, 3000 * wsReconnectAttempts);
+                    } else {
+                        console.log('WebSocket重连失败，已达到最大尝试次数');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket错误:', error);
+                };
+                
+            } catch (error) {
+                console.error('WebSocket初始化失败:', error);
+            }
+        }
+        
+        // 启动WebSocket心跳
+        function startWebSocketHeartbeat() {
+            wsHeartbeatInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+                }
+            }, 25000); // 每25秒发送一次心跳
+        }
+        
+        // 停止WebSocket心跳
+        function stopWebSocketHeartbeat() {
+            if (wsHeartbeatInterval) {
+                clearInterval(wsHeartbeatInterval);
+                wsHeartbeatInterval = null;
+            }
+        }
+        
+        // 检查服务器健康状态
+        async function checkServerHealth() {
+            try {
+                const response = await fetch('/api/health', {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.status === 'healthy') {
+                        if (!isOnline) {
+                            isOnline = true;
+                            reconnectAttempts = 0;
+                            showStatus('连接已恢复', 'success');
+                            updateConnectionStatus(true);
+                            // 重新加载配置和日志
+                            loadConfig();
+                            loadLogs();
+                        }
+                        return true;
+                    }
+                }
+                throw new Error('服务器响应异常');
+            } catch (error) {
+                if (isOnline) {
+                    isOnline = false;
+                    updateConnectionStatus(false);
+                    showStatus('服务器连接断开，正在尝试重连...', 'error');
+                }
+                return false;
+            }
+        }
+        
+        // 更新连接状态显示
+        function updateConnectionStatus(online) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (statusElement) {
+                statusElement.textContent = online ? '🟢 已连接' : '🔴 连接断开';
+                statusElement.className = online ? 'status-online' : 'status-offline';
+            }
+        }
+        
+        // 启动健康检查
+        function startHealthCheck() {
+            // 每30秒检查一次服务器状态
+            healthCheckInterval = setInterval(async () => {
+                const healthy = await checkServerHealth();
+                if (!healthy) {
+                    reconnectAttempts++;
+                    if (reconnectAttempts >= maxReconnectAttempts) {
+                        showStatus(`连接失败，已尝试 ${maxReconnectAttempts} 次。请手动刷新页面`, 'error');
+                        clearInterval(healthCheckInterval);
+                    }
+                }
+            }, 30000);
+        }
+        
+        // 页面可见性变化处理
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && !isOnline) {
+                // 页面重新可见时检查连接
+                checkServerHealth();
+            }
+        });
+        
         // 页面加载时初始化
         window.onload = function() {
             loadConfig();
             updateApiInfo();
+            startHealthCheck();
+            initWebSocket();
+            
+            // 初始健康检查
+            setTimeout(() => {
+                checkServerHealth();
+            }, 1000);
         };
+        
+        // 页面卸载时清理定时器和WebSocket连接
+        window.addEventListener('beforeunload', function() {
+            if (healthCheckInterval) {
+                clearInterval(healthCheckInterval);
+            }
+            stopWebSocketHeartbeat();
+            if (ws) {
+                ws.close();
+            }
+        });
         
         // 加载配置
         async function loadConfig() {
             try {
                 const response = await fetch('/api/config');
-                const config = await response.json();
-                currentConfig = config;
                 
-                document.getElementById('apiKey').value = config.apiKey || '';
-                document.getElementById('replyContent').value = config.replyContent || '';
-                document.getElementById('responseDelay').value = config.responseDelay || 0;
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
-                updateApiInfo();
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentConfig = result.config;
+                    document.getElementById('apiKey').value = currentConfig.apiKey || '';
+                    document.getElementById('replyContent').value = currentConfig.replyContent || '';
+                    document.getElementById('responseDelay').value = currentConfig.responseDelay || 0;
+                    updateApiInfo();
+                } else {
+                    showStatus('加载配置失败: ' + (result.message || '未知错误'), 'error');
+                }
             } catch (error) {
-                showStatus('加载配置失败: ' + error.message, 'error');
+                console.error('加载配置错误:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showStatus('网络连接失败，无法加载配置。请检查服务器状态', 'error');
+                } else {
+                    showStatus('加载配置失败: ' + error.message, 'error');
+                }
             }
         }
         
@@ -283,14 +501,21 @@
             const replyContent = document.getElementById('replyContent').value;
             const responseDelay = document.getElementById('responseDelay').value;
             
+            showStatus('正在保存配置...', 'info');
+            
             try {
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ apiKey, replyContent, responseDelay })
+                    body: JSON.stringify({ apiKey, replyContent, responseDelay }),
+                    timeout: 10000 // 10秒超时
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
                 const result = await response.json();
                 
@@ -299,10 +524,15 @@
                     showStatus('配置保存成功！', 'success');
                     updateApiInfo();
                 } else {
-                    showStatus('保存配置失败', 'error');
+                    showStatus('保存配置失败: ' + (result.message || '未知错误'), 'error');
                 }
             } catch (error) {
-                showStatus('保存配置失败: ' + error.message, 'error');
+                console.error('保存配置错误:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showStatus('网络连接失败，请检查服务器状态或稍后重试', 'error');
+                } else {
+                    showStatus('保存配置失败: ' + error.message, 'error');
+                }
             }
         }
         
@@ -364,11 +594,13 @@
         
         // 下载日志
         async function downloadLogs() {
+            showStatus('正在准备下载日志...', 'info');
+            
             try {
                 const response = await fetch('/api/logs/download');
                 
                 if (!response.ok) {
-                    throw new Error('下载失败');
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 const blob = await response.blob();
@@ -395,7 +627,12 @@
                 
                 showStatus('日志下载成功', 'success');
             } catch (error) {
-                showStatus('下载日志失败: ' + error.message, 'error');
+                console.error('下载日志错误:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    showStatus('网络连接失败，无法下载日志。请检查服务器状态', 'error');
+                } else {
+                    showStatus('下载日志失败: ' + error.message, 'error');
+                }
             }
         }
         
