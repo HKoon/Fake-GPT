@@ -476,15 +476,13 @@
                 
                 const result = await response.json();
                 
-                if (result.success) {
-                    currentConfig = result.config;
-                    document.getElementById('apiKey').value = currentConfig.apiKey || '';
-                    document.getElementById('replyContent').value = currentConfig.replyContent || '';
-                    document.getElementById('responseDelay').value = currentConfig.responseDelay || 0;
-                    updateApiInfo();
-                } else {
-                    showStatus('加载配置失败: ' + (result.message || '未知错误'), 'error');
-                }
+                // /api/config直接返回配置对象，不需要检查success字段
+                currentConfig = result;
+                document.getElementById('apiKey').value = currentConfig.apiKey || '';
+                document.getElementById('replyContent').value = currentConfig.replyContent || '';
+                document.getElementById('responseDelay').value = currentConfig.responseDelay || 0;
+                updateApiInfo();
+                showStatus('配置加载成功', 'success');
             } catch (error) {
                 console.error('加载配置错误:', error);
                 if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
