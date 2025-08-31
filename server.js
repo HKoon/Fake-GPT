@@ -520,7 +520,8 @@ app.post('/api/config', requireAuth, (req, res) => {
         validModels[modelName] = {
           name: modelConfig.name,
           replyContent: modelConfig.replyContent,
-          responseDelay: Math.max(0, parseInt(modelConfig.responseDelay) || 0)
+          responseDelay: Math.max(0, parseInt(modelConfig.responseDelay) || 0),
+          replyMode: modelConfig.replyMode || 'preset'
         };
       }
     }
