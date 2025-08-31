@@ -111,6 +111,10 @@
             resize: vertical;
             min-height: 100px;
         }
+        /* 让默认模型选择控件与搜索输入等宽 */
+        #defaultModel {
+          width: 100%;
+        }
         
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -208,6 +212,10 @@
             right: 300px;
             border-radius: 0 8px 8px 0;
         }
+        /* 让服务器配置的测试命令区域填充剩余空间 */
+        #serverConfigCard { display: flex; flex-direction: column; }
+        #serverConfigCard .form-group:last-of-type { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 160px; }
+        #serverConfigCard #curlCommand { flex: 1 1 auto; height: auto; min-height: 120px; }
         
         .save-status {
             display: flex;
@@ -421,7 +429,7 @@
              background: #f8f9fa;
              border: 1px solid #e9ecef;
              border-radius: 8px;
-             padding: 15px;
+             padding: 0 15px 15px 15px;
              margin-bottom: 15px;
              position: relative;
          }
@@ -660,7 +668,7 @@
       .model-fields { grid-template-columns: 1fr; }
     }
     /* 模型配置工具栏与折叠样式 */
-    .models-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 12px 0; }
+    .models-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px; }
     .models-toolbar .search-input { flex: 1 1 320px; min-width: 220px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s, box-shadow .2s; }
     .models-toolbar .search-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,.25); }
     .models-toolbar .toolbar-actions { display: flex; gap: 8px; }
@@ -720,7 +728,7 @@
                 </h2>
                 
                 <div class="form-group" style="margin-bottom: 20px;">
-                    <label for="defaultModel">默认模型:</label>
+                    <label for="defaultModel">默认模型(如果请没有相应,则使用此模型):</label>
                     <select id="defaultModel">
                         <!-- 选项将通过JavaScript动态生成 -->
                     </select>
@@ -728,10 +736,6 @@
                 
                <div class="models-toolbar">
                    <input type="text" id="modelSearchInput" class="search-input" placeholder="搜索配置（模型名/字段名/内容）" oninput="applyModelSearchFilter()">
-                   <div class="toolbar-actions">
-                       <button class="btn" type="button" onclick="expandAllModels()">展开全部配置</button>
-                       <button class="btn" type="button" onclick="collapseAllModels()">折叠全部配置</button>
-                   </div>
                </div>
                 <div class="models-container" id="modelsContainer">
                     <!-- 模型配置项将在这里动态生成 -->
