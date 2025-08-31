@@ -12,9 +12,37 @@ const app = express();
 // 配置存储
 let config = {
   apiKey: 'sk-fake-gpt-key-123456789',
-  replyContent: 'Hello! I am a fake GPT model. This is a simulated response.',
-  responseDelay: 0 // 响应延迟时间（毫秒），0表示无延迟
+  models: {
+    'gpt-3.5-turbo': {
+      name: 'gpt-3.5-turbo',
+      replyContent: 'Hello! This is a fake GPT-3.5 response.',
+      responseDelay: 1000,
+      replyMode: 'preset'
+    },
+    'gpt-4': {
+      name: 'gpt-4',
+      replyContent: 'Hello! This is a fake GPT-4 response.',
+      responseDelay: 1500,
+      replyMode: 'preset'
+    },
+    'claude-3-sonnet': {
+      name: 'claude-3-sonnet',
+      replyContent: 'Hello! This is a fake Claude-3 Sonnet response.',
+      responseDelay: 1200,
+      replyMode: 'preset'
+    }
+  },
+  defaultModel: 'gpt-3.5-turbo'
 };
+
+// 获取模型配置的辅助函数
+function getModelConfig(modelName) {
+  if (config.models[modelName]) {
+    return config.models[modelName];
+  }
+  // 如果找不到指定模型，返回默认模型
+  return config.models[config.defaultModel] || Object.values(config.models)[0];
+}
 
 // 管理员密码（生产环境中应使用环境变量）
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -239,7 +267,21 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
     });
   }
   
+  // 获取对应模型的配置
+  const modelConfig = getModelConfig(model);
+  
   const responseId = `msg_${uuidv4()}`;
+  
+  // 根据回复模式决定响应内容
+  let responseContent;
+  if (modelConfig.replyMode === 'echo') {
+    // 返回用户的最后一条消息内容
+    const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
+    responseContent = lastUserMessage ? lastUserMessage.content : 'No user message found';
+  } else {
+    // 返回预设内容
+    responseContent = modelConfig.replyContent;
+  }
   
   // 应用响应延迟
   const processResponse = () => {
@@ -257,7 +299,7 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
           type: 'message',
           role: 'assistant',
           content: [],
-          model: model,
+          model: modelConfig.name,
           stop_reason: null,
           stop_sequence: null,
           usage: { input_tokens: 10, output_tokens: 0 }
@@ -271,7 +313,7 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
         content_block: { type: 'text', text: '' }
       })}\n\n`);
       
-      const words = config.replyContent.split('');
+      const words = responseContent.split('');
       let wordIndex = 0;
       
       const sendChunk = () => {
@@ -309,14 +351,14 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
         role: 'assistant',
         content: [{
           type: 'text',
-          text: config.replyContent
+          text: responseContent
         }],
-        model: model,
+        model: modelConfig.name,
         stop_reason: 'end_turn',
         stop_sequence: null,
         usage: {
           input_tokens: 10,
-          output_tokens: config.replyContent.length
+          output_tokens: responseContent.length
         }
       };
       
@@ -325,8 +367,8 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
   };
   
   // 如果设置了响应延迟，则延迟执行
-  if (config.responseDelay > 0) {
-    setTimeout(processResponse, config.responseDelay);
+  if (modelConfig.responseDelay > 0) {
+    setTimeout(processResponse, modelConfig.responseDelay);
   } else {
     processResponse();
   }
@@ -345,8 +387,22 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
     });
   }
   
+  // 获取对应模型的配置
+  const modelConfig = getModelConfig(model);
+  
   const responseId = `chatcmpl-${uuidv4()}`;
   const created = Math.floor(Date.now() / 1000);
+  
+  // 根据回复模式决定响应内容
+  let responseContent;
+  if (modelConfig.replyMode === 'echo') {
+    // 返回用户的最后一条消息内容
+    const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
+    responseContent = lastUserMessage ? lastUserMessage.content : 'No user message found';
+  } else {
+    // 返回预设内容
+    responseContent = modelConfig.replyContent;
+  }
   
   // 应用响应延迟
   const processResponse = () => {
@@ -356,7 +412,7 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       
-      const words = config.replyContent.split('');
+      const words = responseContent.split('');
       let wordIndex = 0;
       
       const sendChunk = () => {
@@ -365,7 +421,7 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
             id: responseId,
             object: 'chat.completion.chunk',
             created: created,
-            model: model,
+            model: modelConfig.name,
             choices: [{
               index: 0,
               delta: {
@@ -384,7 +440,7 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
             id: responseId,
             object: 'chat.completion.chunk',
             created: created,
-            model: model,
+            model: modelConfig.name,
             choices: [{
               index: 0,
               delta: {},
@@ -405,19 +461,19 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
         id: responseId,
         object: 'chat.completion',
         created: created,
-        model: model,
+        model: modelConfig.name,
         choices: [{
           index: 0,
           message: {
             role: 'assistant',
-            content: config.replyContent
+            content: responseContent
           },
           finish_reason: 'stop'
         }],
         usage: {
           prompt_tokens: 10,
-          completion_tokens: config.replyContent.length,
-          total_tokens: 10 + config.replyContent.length
+          completion_tokens: responseContent.length,
+          total_tokens: 10 + responseContent.length
         }
       };
       
@@ -426,8 +482,8 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
   };
   
   // 如果设置了响应延迟，则延迟执行
-  if (config.responseDelay > 0) {
-    setTimeout(processResponse, config.responseDelay);
+  if (modelConfig.responseDelay > 0) {
+    setTimeout(processResponse, modelConfig.responseDelay);
   } else {
     processResponse();
   }
@@ -437,24 +493,35 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
 app.get('/api/config', requireAuth, (req, res) => {
   res.json({
     apiKey: config.apiKey,
-    replyContent: config.replyContent,
-    responseDelay: config.responseDelay
+    models: config.models,
+    defaultModel: config.defaultModel
   });
 });
 
 app.post('/api/config', requireAuth, (req, res) => {
-  const { apiKey, replyContent, responseDelay } = req.body;
+  const { apiKey, models, defaultModel } = req.body;
   
   if (apiKey !== undefined) {
     config.apiKey = apiKey;
   }
   
-  if (replyContent !== undefined) {
-    config.replyContent = replyContent;
+  if (models !== undefined) {
+    // 验证模型配置格式
+    const validModels = {};
+    for (const [modelName, modelConfig] of Object.entries(models)) {
+      if (modelConfig.name && modelConfig.replyContent !== undefined && modelConfig.responseDelay !== undefined) {
+        validModels[modelName] = {
+          name: modelConfig.name,
+          replyContent: modelConfig.replyContent,
+          responseDelay: Math.max(0, parseInt(modelConfig.responseDelay) || 0)
+        };
+      }
+    }
+    config.models = validModels;
   }
   
-  if (responseDelay !== undefined) {
-    config.responseDelay = Math.max(0, parseInt(responseDelay) || 0);
+  if (defaultModel !== undefined && config.models[defaultModel]) {
+    config.defaultModel = defaultModel;
   }
   
   res.json({ success: true, config });

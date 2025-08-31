@@ -227,10 +227,118 @@
         }
         
         .logout-btn:hover {
-            transform: translateY(-1px);
-        }
-        
-        @keyframes pulse {
+             transform: translateY(-1px);
+         }
+         
+         .models-container {
+             margin-bottom: 20px;
+         }
+         
+         .model-item {
+             background: #f8f9fa;
+             border: 1px solid #e9ecef;
+             border-radius: 8px;
+             padding: 15px;
+             margin-bottom: 15px;
+             position: relative;
+         }
+         
+         .model-header {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             margin-bottom: 10px;
+         }
+         
+         .model-name {
+             font-weight: 600;
+             color: #495057;
+         }
+         
+         .delete-model-btn {
+             background: #dc3545;
+             color: white;
+             border: none;
+             padding: 4px 8px;
+             border-radius: 4px;
+             cursor: pointer;
+             font-size: 12px;
+         }
+         
+         .delete-model-btn:hover {
+             background: #c82333;
+         }
+         
+         .model-fields {
+             display: grid;
+             grid-template-columns: 1fr 2fr 1fr;
+             gap: 10px;
+             align-items: end;
+         }
+         
+         .model-fields input,
+         .model-fields textarea {
+             width: 100%;
+             padding: 8px;
+             border: 1px solid #ddd;
+             border-radius: 4px;
+             font-size: 14px;
+             font-family: inherit;
+         }
+         
+         .model-fields textarea {
+             resize: vertical;
+             min-height: 60px;
+         }
+         
+         .radio-group {
+             display: flex;
+             gap: 15px;
+             margin-top: 5px;
+         }
+         
+         .radio-option {
+             display: flex;
+             align-items: center;
+             gap: 5px;
+             cursor: pointer;
+             font-size: 14px;
+         }
+         
+         .radio-option input[type="radio"] {
+             margin: 0;
+             width: auto;
+         }
+         
+         .preset-content-group {
+             transition: opacity 0.3s ease;
+         }
+         
+         .preset-content-group.hidden {
+             opacity: 0.5;
+         }
+         
+         .preset-content-group.hidden textarea {
+             background-color: #f8f9fa;
+             color: #6c757d;
+         }
+         
+         .add-model-btn {
+             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+             color: white;
+             border: none;
+             padding: 10px 20px;
+             border-radius: 6px;
+             cursor: pointer;
+             font-weight: 600;
+             transition: transform 0.2s ease;
+         }
+         
+         .add-model-btn:hover {
+             transform: translateY(-1px);
+         }
+         
+         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
@@ -252,6 +360,135 @@
             }
         }
     </style>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --surface: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #4f46e5;
+      --primary-600: #4338ca;
+      --danger: #ef4444;
+      --success: #10b981;
+      --radius: 12px;
+      --shadow-md: 0 6px 24px rgba(16, 24, 40, 0.06);
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Layout containers */
+    .content, .container, .panel {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Card & sections */
+    .card, .section, .model-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Headings */
+    h1, h2, h3 {
+      letter-spacing: .2px;
+      color: #0f172a;
+    }
+    h2 { font-weight: 700; }
+
+    /* Inputs & selects */
+    input, textarea, select, .model-fields input, .model-fields textarea {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input:focus, textarea:focus, select:focus, .model-fields input:focus, .model-fields textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79,70,229,.12);
+    }
+
+    label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+    /* Buttons */
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      box-shadow: 0 8px 16px rgba(79,70,229,.18);
+      transition: transform .12s ease, box-shadow .2s ease, background .2s ease, filter .2s ease;
+      cursor: pointer;
+    }
+    button:hover, .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(79,70,229,.24); filter: brightness(1.02); }
+    button:active, .btn:active { transform: translateY(0); box-shadow: 0 6px 14px rgba(79,70,229,.2); }
+
+    .delete-model-btn { border-color: var(--danger); background: #fff; color: var(--danger); box-shadow: none; }
+    .delete-model-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+
+    .add-model-btn { background: linear-gradient(135deg, var(--success) 0%, #14b8a6 100%); border: none; box-shadow: 0 8px 16px rgba(20,184,166,.2); }
+    .add-model-btn:hover { filter: brightness(0.98); }
+
+    /* Models layout */
+    .models-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+
+    .model-item { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; overflow: hidden; }
+    .model-item:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(16,24,40,0.08); border-color: #d1d5db; }
+
+    .model-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #fff 0%, #fcfcfd 100%);
+    }
+    .model-name { font-weight: 700; color: #111827; }
+
+    .model-fields { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .model-fields .form-group { display: flex; flex-direction: column; gap: 8px; grid-column: span 2; }
+    .model-fields .form-group.half { grid-column: span 1; }
+
+    @media (max-width: 640px) {
+      .content, .container, .panel { padding: 16px; }
+      .model-fields { grid-template-columns: 1fr; }
+    }
+    /* 模型配置工具栏与折叠样式 */
+    .models-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 12px 0; }
+    .models-toolbar .search-input { flex: 1 1 320px; min-width: 220px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s, box-shadow .2s; }
+    .models-toolbar .search-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,.25); }
+    .models-toolbar .toolbar-actions { display: flex; gap: 8px; }
+    .toggle-config-btn { background: #eef2ff; color: #374151; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: background .2s, transform .1s; }
+    .toggle-config-btn:hover { background: #e0e7ff; }
+    .toggle-config-btn:active { transform: translateY(1px); }
+    .model-item.collapsed .model-fields { display: none; }
+    .model-item .model-summary { margin-top: 8px; color: #6b7280; font-size: 13px; background: #f9fafb; border: 1px dashed #e5e7eb; padding: 8px; border-radius: 8px; }
+    .model-item:not(.collapsed) .model-summary { display: none; }
+    .model-item.highlight { outline: 2px solid #93c5fd; outline-offset: 2px; background: #f0f9ff; }
+  </style>
 </head>
 <body>
     <div class="container">
@@ -268,30 +505,26 @@
         
         <div class="grid">
             <div class="card">
-                <h2>⚙️ 配置设置</h2>
+                <h2>⚙️ 服务器配置</h2>
                 <div id="configStatus"></div>
                 
                 <div class="form-group">
                     <label for="apiKey">API Key:</label>
-                    <input type="text" id="apiKey" placeholder="输入API Key">
+                    <input type="text" id="apiKey" placeholder="输入您的API Key">
                 </div>
                 
                 <div class="form-group">
-                    <label for="replyContent">回复内容:</label>
-                    <textarea id="replyContent" placeholder="输入自定义回复内容"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="responseDelay">响应延迟 (毫秒):</label>
-                    <input type="number" id="responseDelay" placeholder="输入响应延迟时间，0表示无延迟" min="0" step="100">
-                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">设置响应延迟可以模拟网络延迟、模型处理时间或连接超时等情况</small>
+                    <label for="defaultModel">默认模型:</label>
+                    <select id="defaultModel">
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                        <option value="gpt-4">gpt-4</option>
+                        <option value="claude-3-sonnet">claude-3-sonnet</option>
+                    </select>
                 </div>
                 
                 <button class="btn" onclick="saveConfig()">💾 保存配置</button>
-            </div>
-            
-            <div class="card">
-                <h2>📊 API 信息</h2>
+                
+                <h3 style="margin-top: 16px; font-size: 16px; color: #374151;">📊 API 信息</h3>
                 <div class="form-group">
                     <label>API 端点:</label>
                     <input type="text" id="apiEndpoint" readonly>
@@ -302,6 +535,23 @@
                     <textarea id="curlCommand" readonly rows="6"></textarea>
                 </div>
             </div>
+            
+            <div class="card">
+                <h2>🤖 模型配置</h2>
+               <div class="models-toolbar">
+                   <input type="text" id="modelSearchInput" class="search-input" placeholder="搜索配置（模型名/字段名/内容）" oninput="applyModelSearchFilter()">
+                   <div class="toolbar-actions">
+                       <button class="btn" type="button" onclick="expandAllModels()">展开全部配置</button>
+                       <button class="btn" type="button" onclick="collapseAllModels()">折叠全部配置</button>
+                   </div>
+               </div>
+                <div class="models-container" id="modelsContainer">
+                    <!-- 模型配置项将在这里动态生成 -->
+                </div>
+                <button class="btn" onclick="addNewModel()">➕ 添加新模型</button>
+            </div>
+            
+
         </div>
         
         <div class="card">
@@ -579,8 +829,11 @@
                 // /api/config直接返回配置对象，不需要检查success字段
                 currentConfig = result;
                 document.getElementById('apiKey').value = currentConfig.apiKey || '';
-                document.getElementById('replyContent').value = currentConfig.replyContent || '';
-                document.getElementById('responseDelay').value = currentConfig.responseDelay || 0;
+                document.getElementById('defaultModel').value = currentConfig.defaultModel || 'gpt-3.5-turbo';
+                
+                // 加载模型配置
+                renderModels(currentConfig.models || {});
+                
                 updateApiInfo();
                 showStatus('配置加载成功', 'success');
             } catch (error) {
@@ -596,8 +849,8 @@
         // 保存配置
         async function saveConfig() {
             const apiKey = document.getElementById('apiKey').value;
-            const replyContent = document.getElementById('replyContent').value;
-            const responseDelay = document.getElementById('responseDelay').value;
+            const defaultModel = document.getElementById('defaultModel').value;
+            const models = collectModelsData();
             
             showStatus('正在保存配置...', 'info');
             
@@ -607,7 +860,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ apiKey, replyContent, responseDelay }),
+                    body: JSON.stringify({ apiKey, defaultModel, models }),
                     timeout: 10000 // 10秒超时
                 });
                 
@@ -766,6 +1019,214 @@
             setTimeout(() => {
                 statusDiv.innerHTML = '';
             }, 3000);
+        }
+        
+        // 收集模型数据
+         function collectModelsData() {
+             const models = {};
+             const modelItems = document.querySelectorAll('.model-item');
+             
+             modelItems.forEach(item => {
+                 const nameInput = item.querySelector('input[placeholder="模型名称"]');
+                 const contentInput = item.querySelector('textarea[placeholder="回复内容"]');
+                 const delayInput = item.querySelector('input[placeholder="响应延迟(毫秒)"]');
+                 const replyModeRadio = item.querySelector('input[name^="replyMode_"]:checked');
+                 
+                 if (nameInput && nameInput.value.trim()) {
+                     const modelName = nameInput.value.trim();
+                     models[modelName] = {
+                         name: modelName,
+                         replyContent: contentInput ? contentInput.value : '',
+                         responseDelay: delayInput ? parseInt(delayInput.value) || 0 : 0,
+                         replyMode: replyModeRadio ? replyModeRadio.value : 'preset'
+                     };
+                 }
+             });
+             
+             return models;
+         }
+         
+         // 渲染模型配置
+         function renderModels(models) {
+             const container = document.getElementById('modelsContainer');
+             container.innerHTML = '';
+             
+             Object.entries(models).forEach(([name, config]) => {
+                 addModelItem(name, config.replyContent, config.responseDelay, config.replyMode || 'preset');
+             });
+            // 应用当前搜索过滤
+            applyModelSearchFilter();
+         }
+         
+         // 添加新模型
+         function addNewModel() {
+            addModelItem('', '', 0, 'preset');
+            // 清除搜索，确保新模型可见
+            const s = document.getElementById('modelSearchInput');
+            if (s) { s.value = ''; }
+            applyModelSearchFilter();
+        }
+         
+         // 添加模型配置项
+         function addModelItem(name = '', replyContent = '', responseDelay = 0, replyMode = 'preset') {
+             const container = document.getElementById('modelsContainer');
+             const modelDiv = document.createElement('div');
+             modelDiv.className = 'model-item collapsed';
+             
+             const radioName = `replyMode_${Date.now()}_${Math.random()}`;
+             const presetChecked = replyMode === 'preset' ? 'checked' : '';
+             const echoChecked = replyMode === 'echo' ? 'checked' : '';
+             const presetGroupClass = replyMode === 'echo' ? 'preset-content-group hidden' : 'preset-content-group';
+             const textareaDisabled = replyMode === 'echo' ? 'disabled' : '';
+             
+             modelDiv.innerHTML = `
+                 <div class="model-header">
+                     <div class="model-name">${name || '新模型'}</div>
+                     <div class="model-actions" style="display:flex; gap:8px;">
+                         <button class="toggle-config-btn" type="button" onclick="toggleModelExpand(this)">展开</button>
+                         <button class="delete-model-btn" type="button" onclick="deleteModel(this)">删除</button>
+                     </div>
+                 </div>
+                 <div class="model-summary"></div>
+                 <div class="model-fields">
+                     <div class="form-group">
+                         <label>模型名称:</label>
+                         <input type="text" placeholder="模型名称" value="${name}" onchange="updateModelName(this)">
+                     </div>
+                     <div class="form-group">
+                         <label>回复模式:</label>
+                         <div class="radio-group">
+                             <label class="radio-option">
+                                 <input type="radio" name="${radioName}" value="preset" ${presetChecked} onchange="handleReplyModeChange(this)">
+                                 <span>返回预设内容</span>
+                             </label>
+                             <label class="radio-option">
+                                 <input type="radio" name="${radioName}" value="echo" ${echoChecked} onchange="handleReplyModeChange(this)">
+                                 <span>回显用户消息</span>
+                             </label>
+                         </div>
+                     </div>
+                     <div class="form-group ${presetGroupClass}">
+                         <label>回复内容:</label>
+                         <textarea placeholder="回复内容" rows="3" oninput="handleReplyChange(this)" ${textareaDisabled}>${replyContent}</textarea>
+                     </div>
+                     <div class="form-group">
+                         <label>响应延迟(毫秒):</label>
+                         <input type="number" placeholder="响应延迟(毫秒)" value="${responseDelay}" min="0" oninput="handleDelayChange(this)">
+                     </div>
+                 </div>
+             `;
+             
+             container.appendChild(modelDiv);
+             // 初始化摘要
+             updateModelSummary(modelDiv);
+         }
+         
+         // 更新模型名称显示
+         function updateModelName(input) {
+             const modelItem = input.closest('.model-item');
+             const nameDisplay = modelItem.querySelector('.model-name');
+             nameDisplay.textContent = input.value || '新模型';
+         }
+        
+        // 删除模型
+        function deleteModel(button) {
+            if (confirm('确定要删除这个模型配置吗？')) {
+                button.closest('.model-item').remove();
+            }
+        }
+
+        // 折叠/展开单个模型
+        function toggleModelExpand(btn) {
+            const modelItem = btn.closest('.model-item');
+            const collapsed = modelItem.classList.toggle('collapsed');
+            btn.textContent = collapsed ? '展开' : '收起';
+        }
+
+        // 展开全部
+        function expandAllModels() {
+            document.querySelectorAll('.model-item').forEach(item => {
+                item.classList.remove('collapsed');
+                const btn = item.querySelector('.toggle-config-btn');
+                if (btn) btn.textContent = '收起';
+            });
+        }
+
+        // 折叠全部
+        function collapseAllModels() {
+            document.querySelectorAll('.model-item').forEach(item => {
+                item.classList.add('collapsed');
+                const btn = item.querySelector('.toggle-config-btn');
+                if (btn) btn.textContent = '展开';
+            });
+        }
+
+        // 搜索过滤
+        function applyModelSearchFilter() {
+            const input = document.getElementById('modelSearchInput');
+            const q = (input ? input.value : '').trim().toLowerCase();
+            let firstMatch = null;
+            document.querySelectorAll('.model-item').forEach(item => {
+                item.classList.remove('highlight');
+                item.style.display = '';
+                const name = item.querySelector('input[placeholder="模型名称"]')?.value || '';
+                const content = item.querySelector('textarea[placeholder="回复内容"]')?.value || '';
+                const delay = item.querySelector('input[placeholder="响应延迟(毫秒)"]')?.value || '';
+                const haystack = `${name} ${content} ${delay}`.toLowerCase();
+                if (!q || haystack.includes(q)) {
+                    item.style.display = '';
+                    if (q) {
+                        item.classList.remove('collapsed');
+                        const btn = item.querySelector('.toggle-config-btn');
+                        if (btn) btn.textContent = '收起';
+                        item.classList.add('highlight');
+                        if (!firstMatch) firstMatch = item;
+                    }
+                } else {
+                    item.style.display = 'none';
+                }
+                // 每次过滤都更新摘要
+                updateModelSummary(item);
+            });
+        }
+
+        // 处理回复模式切换
+        function handleReplyModeChange(radio) {
+            const modelItem = radio.closest('.model-item');
+            const presetGroup = modelItem.querySelector('.preset-content-group');
+            const isPreset = radio.value === 'preset';
+            
+            if (isPreset) {
+                presetGroup.classList.remove('hidden');
+                presetGroup.querySelector('textarea').disabled = false;
+            } else {
+                presetGroup.classList.add('hidden');
+                presetGroup.querySelector('textarea').disabled = true;
+            }
+            
+            updateModelSummary(modelItem);
+        }
+        
+        function handleReplyChange(el) { updateModelSummary(el.closest('.model-item')); }
+        function handleDelayChange(el) { updateModelSummary(el.closest('.model-item')); }
+
+        function updateModelSummary(modelItem) {
+            if (!modelItem) return;
+            const content = modelItem.querySelector('textarea[placeholder="回复内容"]')?.value || '';
+            const delay = modelItem.querySelector('input[placeholder="响应延迟(毫秒)"]')?.value || '0';
+            const replyModeRadio = modelItem.querySelector('input[name^="replyMode_"]:checked');
+            const summaryEl = modelItem.querySelector('.model-summary');
+            
+            if (summaryEl) {
+                const replyMode = replyModeRadio?.value || 'preset';
+                let modeText = replyMode === 'preset' ? '预设内容' : '回显用户消息';
+                const contentPreview = replyMode === 'preset' ? 
+                    (content.length > 30 ? content.substring(0, 30) + '...' : content) : 
+                    '(返回用户请求)';
+                
+                const text = `模式: ${modeText} | 回复: ${contentPreview || '(空)'} | 延迟: ${delay || 0}ms`;
+                summaryEl.textContent = text;
+            }
         }
     </script>
 </body>
