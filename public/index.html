@@ -46,6 +46,13 @@
             margin-bottom: 20px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
         }
         
         .card h2 {
@@ -54,6 +61,23 @@
             font-size: 1.5rem;
             border-bottom: 2px solid #f0f0f0;
             padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .section-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: #e8f5e8;
+            color: #2d5a2d;
+            font-weight: 500;
+        }
+        
+        .section-status.modified {
+            background: #fff3cd;
+            color: #856404;
         }
         
         .form-group {
@@ -98,6 +122,165 @@
             font-size: 14px;
             font-weight: 600;
             transition: transform 0.2s ease;
+        }
+        
+        /* 修改状态指示器 */
+        .modified-indicator {
+            position: relative;
+        }
+        
+        .modified-indicator::after {
+            content: '●';
+            color: #ff6b6b;
+            font-size: 12px;
+            position: absolute;
+            top: -5px;
+            right: -10px;
+            animation: pulse-dot 2s infinite;
+        }
+        
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .modified-section {
+            border-left: 4px solid #ff6b6b;
+            background: linear-gradient(90deg, rgba(255, 107, 107, 0.05) 0%, transparent 100%);
+        }
+        
+        /* 统一操作区域 - 右侧可收缩面板 */
+        .unified-actions {
+            position: fixed;
+            right: -320px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 300px;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px 0 0 12px;
+            padding: 20px;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .unified-actions.expanded {
+            right: 0;
+        }
+        
+        /* 操作面板切换按钮 */
+        .actions-toggle {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px 0 0 8px;
+            padding: 15px 10px;
+            cursor: pointer;
+            z-index: 1001;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .actions-toggle:hover {
+            background: #0056b3;
+            transform: translateY(-50%) translateX(-3px);
+        }
+        
+        .actions-toggle.expanded {
+            right: 300px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .save-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .actions-section {
+            border-top: 1px solid #e9ecef;
+            padding-top: 15px;
+        }
+        
+        .actions-section:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+        
+        .actions-section h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        .unified-actions .btn {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        
+        .unified-actions .btn:last-child {
+            margin-bottom: 0;
+        }
+        
+        .save-status.saving {
+            color: #667eea;
+        }
+        
+        .save-status.saved {
+            color: #28a745;
+        }
+        
+        .save-status.error {
+            color: #dc3545;
+        }
+        
+        .save-status.modified {
+            color: #ff6b6b;
+        }
+        
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 为右侧操作区域留出空间 */
+        body {
+            padding-right: 50px;
         }
         
         .btn:hover {
@@ -504,8 +687,11 @@
         </div>
         
         <div class="grid">
-            <div class="card">
-                <h2>⚙️ 服务器配置</h2>
+            <div class="card" id="serverConfigCard">
+                <h2>
+                    ⚙️ 服务器配置
+                    <span class="section-status" id="serverConfigStatus">已保存</span>
+                </h2>
                 <div id="configStatus"></div>
                 
                 <div class="form-group">
@@ -513,16 +699,7 @@
                     <input type="text" id="apiKey" placeholder="输入您的API Key">
                 </div>
                 
-                <div class="form-group">
-                    <label for="defaultModel">默认模型:</label>
-                    <select id="defaultModel">
-                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                        <option value="gpt-4">gpt-4</option>
-                        <option value="claude-3-sonnet">claude-3-sonnet</option>
-                    </select>
-                </div>
-                
-                <button class="btn" onclick="saveConfig()">💾 保存配置</button>
+                <!-- 保存按钮已移至统一操作区域 -->
                 
                 <h3 style="margin-top: 16px; font-size: 16px; color: #374151;">📊 API 信息</h3>
                 <div class="form-group">
@@ -536,8 +713,19 @@
                 </div>
             </div>
             
-            <div class="card">
-                <h2>🤖 模型配置</h2>
+            <div class="card" id="modelConfigCard">
+                <h2>
+                    🤖 模型配置
+                    <span class="section-status" id="modelConfigStatus">已保存</span>
+                </h2>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="defaultModel">默认模型:</label>
+                    <select id="defaultModel">
+                        <!-- 选项将通过JavaScript动态生成 -->
+                    </select>
+                </div>
+                
                <div class="models-toolbar">
                    <input type="text" id="modelSearchInput" class="search-input" placeholder="搜索配置（模型名/字段名/内容）" oninput="applyModelSearchFilter()">
                    <div class="toolbar-actions">
@@ -548,19 +736,21 @@
                 <div class="models-container" id="modelsContainer">
                     <!-- 模型配置项将在这里动态生成 -->
                 </div>
-                <button class="btn" onclick="addNewModel()">➕ 添加新模型</button>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn" onclick="addNewModel()">➕ 添加新模型</button>
+                    <!-- 保存按钮已移至统一操作区域 -->
+                </div>
             </div>
             
 
         </div>
         
-        <div class="card">
-            <h2>📝 请求日志</h2>
-            <div style="margin-bottom: 15px;">
-                <button class="btn" onclick="loadLogs()">🔄 刷新日志</button>
-                <button class="btn" onclick="downloadLogs()">📥 下载日志</button>
-                <button class="btn btn-danger" onclick="clearLogs()">🗑️ 清空日志</button>
-            </div>
+        <div class="card" id="logsCard">
+            <h2>
+                📝 请求日志
+                <span class="section-status">只读</span>
+            </h2>
+            <!-- 日志操作按钮已移至统一操作区域 -->
             
             <div id="logsContainer" class="logs-container">
                 <p style="text-align: center; color: #666;">点击"刷新日志"加载请求记录</p>
@@ -568,8 +758,49 @@
         </div>
     </div>
     
+    <!-- 操作面板切换按钮 -->
+    <button class="actions-toggle" id="actionsToggle" onclick="toggleActionsPanel()">操作面板</button>
+    
+    <!-- 统一操作区域 -->
+    <div class="unified-actions" id="unifiedActions">
+        <div class="actions-section">
+            <div class="save-status" id="saveStatus">
+                <span>📄 所有更改已保存</span>
+            </div>
+        </div>
+        
+        <div class="actions-section">
+            <h4>💾 配置管理</h4>
+            <button class="btn" onclick="saveAllConfig()" id="saveAllBtn">
+                保存所有配置
+            </button>
+            <button class="btn" onclick="toggleAutoSave()" id="autoSaveBtn">
+                自动保存: 开启
+            </button>
+        </div>
+        
+        <div class="actions-section">
+            <h4>📝 日志操作</h4>
+            <button class="btn" onclick="loadLogs()">
+                刷新日志
+            </button>
+            <button class="btn" onclick="downloadLogs()">
+                下载日志
+            </button>
+            <button class="btn btn-danger" onclick="clearLogs()">
+                清空日志
+            </button>
+        </div>
+    </div>
+    
     <script>
         let currentConfig = {};
+        
+        // 修改状态跟踪
+        let hasUnsavedChanges = false;
+        let autoSaveEnabled = true;
+        let autoSaveTimeout = null;
+        let lastSavedConfig = null;
         
         // 网络状态管理
         let isOnline = true;
@@ -724,12 +955,210 @@
             startHealthCheck();
             initWebSocket();
             startSessionCheck(); // 启动定期会话检查
+            initChangeTracking(); // 初始化修改跟踪
             
             // 初始健康检查
             setTimeout(() => {
                 checkServerHealth();
             }, 1000);
         };
+        
+        // 初始化修改跟踪
+        function initChangeTracking() {
+            // 监听所有输入字段的变化
+            document.addEventListener('input', function(e) {
+                if (e.target.matches('input, textarea, select')) {
+                    markAsModified();
+                }
+            });
+            
+            // 监听单选按钮变化
+            document.addEventListener('change', function(e) {
+                if (e.target.matches('input[type="radio"]')) {
+                    markAsModified();
+                }
+            });
+            
+            // 页面离开前提醒
+            window.addEventListener('beforeunload', function(e) {
+                if (hasUnsavedChanges) {
+                    e.preventDefault();
+                    e.returnValue = '您有未保存的更改，确定要离开吗？';
+                    return e.returnValue;
+                }
+            });
+        }
+        
+        // 标记为已修改
+        function markAsModified() {
+            if (!hasUnsavedChanges) {
+                hasUnsavedChanges = true;
+                updateSaveStatus('modified', '⚠️ 有未保存的更改');
+                
+                // 添加视觉提示
+                document.querySelectorAll('.card').forEach(card => {
+                    card.classList.add('modified-section');
+                });
+                
+                // 更新各区域状态
+                const serverStatus = document.getElementById('serverConfigStatus');
+                const modelStatus = document.getElementById('modelConfigStatus');
+                if (serverStatus) {
+                    serverStatus.textContent = '未保存';
+                    serverStatus.classList.add('modified');
+                }
+                if (modelStatus) {
+                    modelStatus.textContent = '未保存';
+                    modelStatus.classList.add('modified');
+                }
+                
+                // 自动保存
+                if (autoSaveEnabled) {
+                    scheduleAutoSave();
+                }
+            }
+        }
+        
+        // 标记为已保存
+        function markAsSaved() {
+            hasUnsavedChanges = false;
+            updateSaveStatus('saved', '✅ 所有更改已保存');
+            
+            // 移除视觉提示
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('modified-section');
+            });
+            
+            // 更新各区域状态
+            const serverStatus = document.getElementById('serverConfigStatus');
+            const modelStatus = document.getElementById('modelConfigStatus');
+            if (serverStatus) {
+                serverStatus.textContent = '已保存';
+                serverStatus.classList.remove('modified');
+            }
+            if (modelStatus) {
+                modelStatus.textContent = '已保存';
+                modelStatus.classList.remove('modified');
+            }
+            
+            // 取消自动保存
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = null;
+            }
+        }
+        
+        // 更新保存状态显示
+        function updateSaveStatus(status, message) {
+            const statusElement = document.getElementById('saveStatus');
+            const saveBtn = document.getElementById('saveAllBtn');
+            
+            statusElement.className = `save-status ${status}`;
+            
+            if (status === 'saving') {
+                statusElement.innerHTML = `<div class="spinner"></div><span>${message}</span>`;
+                saveBtn.disabled = true;
+            } else {
+                statusElement.innerHTML = `<span>${message}</span>`;
+                saveBtn.disabled = false;
+            }
+        }
+        
+        // 计划自动保存
+        function scheduleAutoSave() {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+            }
+            
+            autoSaveTimeout = setTimeout(() => {
+                if (hasUnsavedChanges && autoSaveEnabled) {
+                    saveAllConfig(true); // 静默保存
+                }
+            }, 3000); // 3秒后自动保存
+        }
+        
+        // 切换自动保存
+        function toggleAutoSave() {
+            autoSaveEnabled = !autoSaveEnabled;
+            const btn = document.getElementById('autoSaveBtn');
+            btn.textContent = `自动保存: ${autoSaveEnabled ? '开启' : '关闭'}`;
+            
+            if (autoSaveEnabled && hasUnsavedChanges) {
+                scheduleAutoSave();
+            } else if (!autoSaveEnabled && autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = null;
+            }
+        }
+        
+        // 切换操作面板
+        function toggleActionsPanel() {
+            const panel = document.getElementById('unifiedActions');
+            const toggle = document.getElementById('actionsToggle');
+            
+            panel.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+            
+            // 更新按钮文字
+            if (panel.classList.contains('expanded')) {
+                toggle.textContent = '收起面板';
+            } else {
+                toggle.textContent = '操作面板';
+            }
+        }
+        
+        // 统一保存所有配置
+        async function saveAllConfig(silent = false) {
+            const apiKey = document.getElementById('apiKey').value;
+            const defaultModel = document.getElementById('defaultModel').value;
+            const models = collectModelsData();
+            
+            if (!silent) {
+                updateSaveStatus('saving', '正在保存配置...');
+            }
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ apiKey, defaultModel, models }),
+                    timeout: 10000
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentConfig = result.config;
+                    lastSavedConfig = JSON.stringify({ apiKey, defaultModel, models });
+                    markAsSaved();
+                    updateApiInfo();
+                    updateDefaultModelOptions();
+                    
+                    if (!silent) {
+                        showStatus('配置保存成功！', 'success');
+                    }
+                } else {
+                    throw new Error(result.message || '未知错误');
+                }
+            } catch (error) {
+                console.error('保存配置错误:', error);
+                updateSaveStatus('error', '❌ 保存失败');
+                
+                if (!silent) {
+                    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                        showStatus('网络连接失败，请检查服务器状态或稍后重试', 'error');
+                    } else {
+                        showStatus('保存配置失败: ' + error.message, 'error');
+                    }
+                }
+            }
+        }
         
         // 检查会话状态
          async function checkSession() {
@@ -834,7 +1263,19 @@
                 // 加载模型配置
                 renderModels(currentConfig.models || {});
                 
+                // 更新默认模型列表
+                updateDefaultModelOptions();
+                
                 updateApiInfo();
+                
+                // 初始化保存状态
+                lastSavedConfig = JSON.stringify({ 
+                    apiKey: currentConfig.apiKey || '', 
+                    defaultModel: currentConfig.defaultModel || 'gpt-3.5-turbo', 
+                    models: currentConfig.models || {} 
+                });
+                markAsSaved();
+                
                 showStatus('配置加载成功', 'success');
             } catch (error) {
                 console.error('加载配置错误:', error);
@@ -846,44 +1287,37 @@
             }
         }
         
-        // 保存配置
-        async function saveConfig() {
-            const apiKey = document.getElementById('apiKey').value;
-            const defaultModel = document.getElementById('defaultModel').value;
+        // 旧的保存函数已被统一的saveAllConfig函数替代
+        
+        // 更新默认模型选项
+        function updateDefaultModelOptions() {
+            const defaultModelSelect = document.getElementById('defaultModel');
+            const currentValue = defaultModelSelect.value;
+            
+            // 清空现有选项
+            defaultModelSelect.innerHTML = '';
+            
+            // 从当前可用的模型数据中动态生成选项
             const models = collectModelsData();
+            Object.keys(models).forEach(modelName => {
+                const option = document.createElement('option');
+                option.value = modelName;
+                option.textContent = modelName;
+                defaultModelSelect.appendChild(option);
+            });
             
-            showStatus('正在保存配置...', 'info');
+            // 如果没有任何模型，添加一个提示选项
+            if (Object.keys(models).length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '请先添加模型配置';
+                option.disabled = true;
+                defaultModelSelect.appendChild(option);
+            }
             
-            try {
-                const response = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ apiKey, defaultModel, models }),
-                    timeout: 10000 // 10秒超时
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    currentConfig = result.config;
-                    showStatus('配置保存成功！', 'success');
-                    updateApiInfo();
-                } else {
-                    showStatus('保存配置失败: ' + (result.message || '未知错误'), 'error');
-                }
-            } catch (error) {
-                console.error('保存配置错误:', error);
-                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                    showStatus('网络连接失败，请检查服务器状态或稍后重试', 'error');
-                } else {
-                    showStatus('保存配置失败: ' + error.message, 'error');
-                }
+            // 恢复之前选择的值，如果存在的话
+            if (currentValue && [...defaultModelSelect.options].some(opt => opt.value === currentValue)) {
+                defaultModelSelect.value = currentValue;
             }
         }
         
@@ -1065,6 +1499,8 @@
             const s = document.getElementById('modelSearchInput');
             if (s) { s.value = ''; }
             applyModelSearchFilter();
+            // 标记为已修改
+            markAsModified();
         }
          
          // 添加模型配置项
@@ -1127,12 +1563,20 @@
              const modelItem = input.closest('.model-item');
              const nameDisplay = modelItem.querySelector('.model-name');
              nameDisplay.textContent = input.value || '新模型';
+             // 实时更新默认模型列表
+             updateDefaultModelOptions();
+             // 标记为已修改
+             markAsModified();
          }
         
         // 删除模型
         function deleteModel(button) {
             if (confirm('确定要删除这个模型配置吗？')) {
                 button.closest('.model-item').remove();
+                // 删除后更新默认模型列表
+                updateDefaultModelOptions();
+                // 标记为已修改
+                markAsModified();
             }
         }
 
@@ -1205,6 +1649,8 @@
             }
             
             updateModelSummary(modelItem);
+            // 标记为已修改
+            markAsModified();
         }
         
         function handleReplyChange(el) { updateModelSummary(el.closest('.model-item')); }

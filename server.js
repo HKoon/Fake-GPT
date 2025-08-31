@@ -79,7 +79,10 @@ function checkAuth(req, res, next) {
 }
 
 // 中间件
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:3000',
+  credentials: true
+}));
 app.use(bodyParser.json());
 
 // 会话管理
@@ -88,9 +91,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // 在生产环境中使用HTTPS时设置为true
+    secure: process.env.NODE_ENV === 'production', // 生产环境使用HTTPS时设置为true
     httpOnly: true,
-    maxAge: 2 * 60 * 60 * 1000 // 2小时会话超时
+    maxAge: 2 * 60 * 60 * 1000, // 2小时会话超时
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
@@ -113,20 +117,25 @@ function checkSessionTimeout(req, res, next) {
   next();
 }
 // 静态文件服务配置
-app.use(express.static('public', {
-    maxAge: '1h', // 缓存1小时
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : '1h', // 生产环境缓存1天，开发环境1小时
     etag: true,
     lastModified: true,
-    setHeaders: (res, path) => {
+    setHeaders: (res, filePath) => {
         // 对HTML文件设置较短的缓存时间
-        if (path.endsWith('.html')) {
+        if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         }
         // 设置连接保活
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('Keep-Alive', 'timeout=30, max=100');
+        // 设置安全头
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
     }
 }));
+
+
 
 // OpenAI API Key验证中间件
 function validateApiKey(req, res, next) {
@@ -536,7 +545,41 @@ app.get('/api/health', (req, res) => {
     success: true, 
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    port: PORT,
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
+// 根路径健康检查（用于Zeabur等平台的健康检查）
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// SPA fallback - 对于非API路由返回index.html（必须放在所有路由定义之后）
+app.get('*', (req, res, next) => {
+    // 跳过API路由和健康检查
+    if (req.path.startsWith('/api/') || req.path.startsWith('/v1/') || req.path === '/health') {
+        return next();
+    }
+    // 对于其他路由，返回index.html（用于SPA路由）
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('服务器错误:', err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404处理
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Route ${req.method} ${req.path} not found`
   });
 });
 
@@ -626,12 +669,13 @@ function broadcast(message) {
     });
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
+    const host = process.env.NODE_ENV === 'production' ? (process.env.ZEABUR_URL || `0.0.0.0:${PORT}`) : `localhost:${PORT}`;
     console.log(`Fake GPT server is running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}`);
-    console.log(`OpenAI API endpoint: http://localhost:${PORT}/v1/chat/completions`);
-    console.log(`Anthropic API endpoint: http://localhost:${PORT}/v1/messages`);
-    console.log(`WebSocket server is running on ws://localhost:${PORT}`);
+    console.log(`Admin panel: http://${host}`);
+    console.log(`OpenAI API endpoint: http://${host}/v1/chat/completions`);
+    console.log(`Anthropic API endpoint: http://${host}/v1/messages`);
+    console.log(`WebSocket server is running on ws://${host}`);
 });
 
 // 服务器连接保活设置
