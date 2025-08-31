@@ -275,9 +275,8 @@ app.post('/v1/messages', validateAnthropicApiKey, logRequest, (req, res) => {
   // 根据回复模式决定响应内容
   let responseContent;
   if (modelConfig.replyMode === 'echo') {
-    // 返回用户的最后一条消息内容
-    const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
-    responseContent = lastUserMessage ? lastUserMessage.content : 'No user message found';
+    // 返回完整的请求JSON
+    responseContent = JSON.stringify(req.body, null, 2);
   } else {
     // 返回预设内容
     responseContent = modelConfig.replyContent;
@@ -396,9 +395,8 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
   // 根据回复模式决定响应内容
   let responseContent;
   if (modelConfig.replyMode === 'echo') {
-    // 返回用户的最后一条消息内容
-    const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
-    responseContent = lastUserMessage ? lastUserMessage.content : 'No user message found';
+    // 返回完整的请求JSON
+    responseContent = JSON.stringify(req.body, null, 2);
   } else {
     // 返回预设内容
     responseContent = modelConfig.replyContent;

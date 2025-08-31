@@ -1101,9 +1101,9 @@
                                  <span>返回预设内容</span>
                              </label>
                              <label class="radio-option">
-                                 <input type="radio" name="${radioName}" value="echo" ${echoChecked} onchange="handleReplyModeChange(this)">
-                                 <span>回显用户消息</span>
-                             </label>
+                            <input type="radio" name="${radioName}" value="echo" ${echoChecked} onchange="handleReplyModeChange(this)">
+                            <span>返回请求JSON</span>
+                        </label>
                          </div>
                      </div>
                      <div class="form-group ${presetGroupClass}">
@@ -1219,7 +1219,7 @@
             
             if (summaryEl) {
                 const replyMode = replyModeRadio?.value || 'preset';
-                let modeText = replyMode === 'preset' ? '预设内容' : '回显用户消息';
+                let modeText = replyMode === 'preset' ? '预设内容' : '返回请求JSON';
                 const contentPreview = replyMode === 'preset' ? 
                     (content.length > 30 ? content.substring(0, 30) + '...' : content) : 
                     '(返回用户请求)';
