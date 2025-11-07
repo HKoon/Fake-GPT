@@ -6,6 +6,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const http = require('http');
 const session = require('express-session');
+const fs = require('fs');
 
 const app = express();
 
@@ -49,6 +50,50 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // 请求记录存储
 let requestLogs = [];
+
+// 日志持久化路径
+const LOGS_DIR = path.join(__dirname, 'logs');
+const LOGS_FILE = path.join(LOGS_DIR, 'request_logs.json');
+
+function ensureLogsStorage() {
+  try {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  } catch (err) {
+    console.error('创建日志目录失败:', err);
+  }
+}
+
+function loadLogsFromFile() {
+  try {
+    ensureLogsStorage();
+    if (fs.existsSync(LOGS_FILE)) {
+      const data = fs.readFileSync(LOGS_FILE, 'utf8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        requestLogs = parsed;
+      }
+    }
+  } catch (err) {
+    console.error('读取日志文件失败:', err);
+    requestLogs = [];
+  }
+}
+
+function saveLogsToFile() {
+  try {
+    ensureLogsStorage();
+    fs.writeFile(LOGS_FILE, JSON.stringify(requestLogs, null, 2), 'utf8', (err) => {
+      if (err) {
+        console.error('写入日志文件失败:', err);
+      }
+    });
+  } catch (err) {
+    console.error('保存日志失败:', err);
+  }
+}
+
+// 启动时加载持久化日志
+loadLogsFromFile();
 
 // 身份验证中间件
 function requireAuth(req, res, next) {
@@ -194,6 +239,8 @@ function logRequest(req, res, next) {
   if (requestLogs.length > 100) {
     requestLogs = requestLogs.slice(0, 100);
   }
+  // 保存到文件
+  saveLogsToFile();
   
   next();
 }
@@ -540,6 +587,27 @@ app.get('/api/logs', requireAuth, (req, res) => {
   res.json(requestLogs);
 });
 
+// 清空请求日志接口（需要身份验证）
+app.delete('/api/logs', requireAuth, (req, res) => {
+  requestLogs = [];
+  saveLogsToFile();
+  res.json({ success: true });
+});
+
+// 下载请求日志接口（需要身份验证）
+app.get('/api/logs/download', requireAuth, (req, res) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `fake-gpt-logs-${timestamp}.json`;
+  
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json({
+    exportTime: new Date().toISOString(),
+    totalLogs: requestLogs.length,
+    logs: requestLogs
+  });
+});
+
 // 健康检查端点（公开访问，用于连接检测）
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -584,24 +652,6 @@ app.use((req, res) => {
   });
 });
 
-app.delete('/api/logs', requireAuth, (req, res) => {
-  requestLogs = [];
-  res.json({ success: true });
-});
-
-// 下载请求日志接口（需要身份验证）
-app.get('/api/logs/download', requireAuth, (req, res) => {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `fake-gpt-logs-${timestamp}.json`;
-  
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.json({
-    exportTime: new Date().toISOString(),
-    totalLogs: requestLogs.length,
-    logs: requestLogs
-  });
-});
 
 // 启动服务器
 const PORT = process.env.PORT || 3000;
