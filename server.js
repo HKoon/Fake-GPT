@@ -487,7 +487,7 @@ app.post('/v1/chat/completions', validateApiKey, logRequest, (req, res) => {
           
           res.write(`data: ${JSON.stringify(chunk)}\n\n`);
           wordIndex++;
-          setTimeout(sendChunk, 50); // 50ms延迟模拟打字效果
+          setTimeout(sendChunk, 10); // 10ms延迟模拟打字效果
         } else {
           // 发送结束chunk
           const endChunk = {
